@@ -1,13 +1,32 @@
 
-from fastapi import FastAPI
+from typing import Any
+
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
 app = FastAPI(
     title="Task API",
     version="1.0"
 )
 
-# In-memory task list with 3 example tasks
+
+# Request body model for creating tasks
+class TaskCreate(BaseModel):
+    title: Any = None
+
+
+# Return HTTP 400 for invalid request bodies
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=400,
+        content={"error": "Invalid request body"}
+    )
+
+
+# In-memory task list
 tasks = [
     {"id": 1, "title": "Learn Python", "done": True},
     {"id": 2, "title": "Build my first API", "done": False},
@@ -24,7 +43,7 @@ def root():
     }
 
 
-@app.get("/health", description="Check API server health")
+@app.get("/health", description="Check API health")
 def health():
     return {"status": "ok"}
 
@@ -43,4 +62,28 @@ def get_task(task_id: int):
     return JSONResponse(
         status_code=404,
         content={"error": f"Task {task_id} not found"}
+    )
+
+
+@app.post("/tasks", description="Create a new task")
+def create_task(payload: TaskCreate):
+    title = payload.title
+
+    if not isinstance(title, str) or not title.strip():
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Title is required and cannot be empty"}
+        )
+
+    new_task = {
+        "id": max((task["id"] for task in tasks), default=0) + 1,
+        "title": title.strip(),
+        "done": False
+    }
+
+    tasks.append(new_task)
+
+    return JSONResponse(
+        status_code=201,
+        content=new_task
     )
