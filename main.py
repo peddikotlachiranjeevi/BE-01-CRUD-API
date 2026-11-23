@@ -45,6 +45,20 @@ def initialize_database():
 initialize_database()
 
 
+def get_db_connection():
+    connection = sqlite3.connect(DATABASE_PATH)
+    connection.row_factory = sqlite3.Row
+    return connection
+
+
+def convert_task(row):
+    return {
+        "id": row["id"],
+        "title": row["title"],
+        "done": bool(row["done"])
+    }
+
+
 app = FastAPI(
     title="Task API",
     version="1.0",
@@ -69,7 +83,8 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 
-# Temporary memory storage. We will replace this in Stages 1-3.
+# Temporary memory storage for write operations.
+# POST, PUT and DELETE will use SQLite in Stages 2 and 3.
 tasks = [
     {"id": 1, "title": "Learn Python", "done": True},
     {"id": 2, "title": "Build my first API", "done": False},
@@ -77,7 +92,7 @@ tasks = [
 ]
 
 
-@app.get("/")
+@app.get("/", description="Get information about the Task API")
 def root():
     return {
         "name": "Task API",
@@ -86,29 +101,48 @@ def root():
     }
 
 
-@app.get("/health")
+@app.get("/health", description="Check whether the API is running")
 def health():
     return {"status": "ok"}
 
 
-@app.get("/tasks")
+# STAGE 1: GET ALL TASKS FROM SQLITE
+@app.get("/tasks", description="Get all tasks")
 def get_tasks():
-    return tasks
+    connection = get_db_connection()
+    try:
+        rows = connection.execute(
+            "SELECT id, title, done FROM tasks ORDER BY id"
+        ).fetchall()
+
+        return [convert_task(row) for row in rows]
+    finally:
+        connection.close()
 
 
-@app.get("/tasks/{task_id}")
+# STAGE 1: GET ONE TASK FROM SQLITE
+@app.get("/tasks/{task_id}", description="Get one task using its ID")
 def get_task(task_id: int):
-    for task in tasks:
-        if task["id"] == task_id:
-            return task
+    connection = get_db_connection()
+    try:
+        row = connection.execute(
+            "SELECT id, title, done FROM tasks WHERE id = ?",
+            (task_id,)
+        ).fetchone()
 
-    return JSONResponse(
-        status_code=404,
-        content={"error": f"Task {task_id} not found"}
-    )
+        if row is None:
+            return JSONResponse(
+                status_code=404,
+                content={"error": f"Task {task_id} not found"}
+            )
+
+        return convert_task(row)
+    finally:
+        connection.close()
 
 
-@app.post("/tasks")
+# POST: Will be connected to SQLite in Stage 2
+@app.post("/tasks", description="Create a new task")
 def create_task(payload: TaskCreate):
     title = payload.title
 
@@ -129,7 +163,8 @@ def create_task(payload: TaskCreate):
     return JSONResponse(status_code=201, content=new_task)
 
 
-@app.put("/tasks/{task_id}")
+# PUT: Will be connected to SQLite in Stage 3
+@app.put("/tasks/{task_id}", description="Update an existing task")
 def update_task(task_id: int, payload: TaskUpdate):
     task = next(
         (task for task in tasks if task["id"] == task_id),
@@ -171,7 +206,8 @@ def update_task(task_id: int, payload: TaskUpdate):
     return task
 
 
-@app.delete("/tasks/{task_id}")
+# DELETE: Will be connected to SQLite in Stage 3
+@app.delete("/tasks/{task_id}", description="Delete a task")
 def delete_task(task_id: int):
     task = next(
         (task for task in tasks if task["id"] == task_id),
