@@ -83,16 +83,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 
-# Temporary memory storage for PUT and DELETE.
-# These operations will move to SQLite in Stage 3.
-tasks = [
-    {"id": 1, "title": "Learn Python", "done": True},
-    {"id": 2, "title": "Build my first API", "done": False},
-    {"id": 3, "title": "Learn FastAPI", "done": False}
-]
-
-
-@app.get("/", description="Get information about the Task API")
+@app.get("/")
 def root():
     return {
         "name": "Task API",
@@ -101,27 +92,26 @@ def root():
     }
 
 
-@app.get("/health", description="Check whether the API is running")
+@app.get("/health")
 def health():
     return {"status": "ok"}
 
 
-# STAGE 1: GET ALL TASKS FROM SQLITE
-@app.get("/tasks", description="Get all tasks")
+# GET ALL TASKS
+@app.get("/tasks")
 def get_tasks():
     connection = get_db_connection()
     try:
         rows = connection.execute(
             "SELECT id, title, done FROM tasks ORDER BY id"
         ).fetchall()
-
         return [convert_task(row) for row in rows]
     finally:
         connection.close()
 
 
-# STAGE 1: GET ONE TASK FROM SQLITE
-@app.get("/tasks/{task_id}", description="Get one task using its ID")
+# GET ONE TASK
+@app.get("/tasks/{task_id}")
 def get_task(task_id: int):
     connection = get_db_connection()
     try:
@@ -141,8 +131,8 @@ def get_task(task_id: int):
         connection.close()
 
 
-# STAGE 2: CREATE TASK IN SQLITE
-@app.post("/tasks", description="Create a new task")
+# CREATE TASK
+@app.post("/tasks")
 def create_task(payload: TaskCreate):
     title = payload.title
 
@@ -158,7 +148,6 @@ def create_task(payload: TaskCreate):
             "INSERT INTO tasks (title, done) VALUES (?, ?)",
             (title.strip(), 0)
         )
-
         connection.commit()
 
         row = connection.execute(
@@ -174,20 +163,9 @@ def create_task(payload: TaskCreate):
         connection.close()
 
 
-# PUT: Will be connected to SQLite in Stage 3
-@app.put("/tasks/{task_id}", description="Update an existing task")
+# STAGE 3: UPDATE TASK USING SQL
+@app.put("/tasks/{task_id}")
 def update_task(task_id: int, payload: TaskUpdate):
-    task = next(
-        (task for task in tasks if task["id"] == task_id),
-        None
-    )
-
-    if task is None:
-        return JSONResponse(
-            status_code=404,
-            content={"error": f"Task {task_id} not found"}
-        )
-
     updates = payload.model_dump(exclude_unset=True)
 
     if not updates:
@@ -196,40 +174,85 @@ def update_task(task_id: int, payload: TaskUpdate):
             content={"error": "Request body cannot be empty"}
         )
 
+    values = []
+    sql_parts = []
+
     if "title" in updates:
         title = updates["title"]
+
         if not isinstance(title, str) or not title.strip():
             return JSONResponse(
                 status_code=400,
                 content={"error": "Title cannot be empty"}
             )
-        task["title"] = title.strip()
+
+        sql_parts.append("title = ?")
+        values.append(title.strip())
 
     if "done" in updates:
         done = updates["done"]
+
         if not isinstance(done, bool):
             return JSONResponse(
                 status_code=400,
                 content={"error": "Done must be true or false"}
             )
-        task["done"] = done
 
-    return task
+        sql_parts.append("done = ?")
+        values.append(int(done))
+
+    connection = get_db_connection()
+
+    try:
+        existing = connection.execute(
+            "SELECT id FROM tasks WHERE id = ?",
+            (task_id,)
+        ).fetchone()
+
+        if existing is None:
+            return JSONResponse(
+                status_code=404,
+                content={"error": f"Task {task_id} not found"}
+            )
+
+        values.append(task_id)
+
+        connection.execute(
+            f"UPDATE tasks SET {', '.join(sql_parts)} WHERE id = ?",
+            values
+        )
+        connection.commit()
+
+        row = connection.execute(
+            "SELECT id, title, done FROM tasks WHERE id = ?",
+            (task_id,)
+        ).fetchone()
+
+        return convert_task(row)
+
+    finally:
+        connection.close()
 
 
-# DELETE: Will be connected to SQLite in Stage 3
-@app.delete("/tasks/{task_id}", description="Delete a task")
+# STAGE 3: DELETE TASK USING SQL
+@app.delete("/tasks/{task_id}")
 def delete_task(task_id: int):
-    task = next(
-        (task for task in tasks if task["id"] == task_id),
-        None
-    )
+    connection = get_db_connection()
 
-    if task is None:
-        return JSONResponse(
-            status_code=404,
-            content={"error": f"Task {task_id} not found"}
+    try:
+        cursor = connection.execute(
+            "DELETE FROM tasks WHERE id = ?",
+            (task_id,)
         )
 
-    tasks.remove(task)
-    return Response(status_code=204)
+        if cursor.rowcount == 0:
+            return JSONResponse(
+                status_code=404,
+                content={"error": f"Task {task_id} not found"}
+            )
+
+        connection.commit()
+        return Response(status_code=204)
+
+    finally:
+        connection.close()
