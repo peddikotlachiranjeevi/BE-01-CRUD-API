@@ -218,3 +218,68 @@ The following operations were tested successfully:
 ### Learning Outcome
 
 Compared two implementations of the same CRUD API and learned about Pydantic validation, ID generation, and Python task lookup techniques.
+
+## BE-02 - Connecting to SQLite Database
+
+### Overview
+The Task API now uses SQLite instead of temporary in-memory storage.
+
+### Why SQLite?
+SQLite is lightweight, stores data in a single file, and does not require a separate database server.
+
+### Database Details
+- Database file: tasks.db
+- Table: tasks
+- Columns: id, title, done
+- Database library: Python built-in sqlite3
+- Database location: Project root folder
+
+The database and table are created automatically when the application starts. Three example tasks are inserted only when the table is empty.
+
+### How to Run
+
+1. Clone this repository.
+2. Create a virtual environment:
+
+   python -m venv .venv
+
+3. Activate it:
+
+   .venv\Scripts\Activate.ps1
+
+4. Install dependencies:
+
+   python -m pip install -r requirements.txt
+
+5. Start the application:
+
+   python -m uvicorn main:app --reload --port 8000
+
+The tasks.db file is created automatically.
+
+### Example SQL Queries
+
+List all tasks:
+
+    SELECT * FROM tasks;
+
+Show completed tasks:
+
+    SELECT * FROM tasks WHERE done = 1;
+
+Count all tasks:
+
+    SELECT COUNT(*) FROM tasks;
+
+### Database Screenshot
+
+See database-screenshot.png for the tasks table opened in DB Browser for SQLite.
+
+### Completed BE-02 Stages
+
+- Stage 0: Create SQLite database
+- Stage 1: Database read endpoints
+- Stage 2: Insert tasks into database
+- Stage 3: Update and delete using SQL
+- Stage 4: Explored SQLite queries
+- Stage 5: Database documentation
