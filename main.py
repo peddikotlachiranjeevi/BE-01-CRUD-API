@@ -83,8 +83,8 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 
-# Temporary memory storage for write operations.
-# POST, PUT and DELETE will use SQLite in Stages 2 and 3.
+# Temporary memory storage for PUT and DELETE.
+# These operations will move to SQLite in Stage 3.
 tasks = [
     {"id": 1, "title": "Learn Python", "done": True},
     {"id": 2, "title": "Build my first API", "done": False},
@@ -141,7 +141,7 @@ def get_task(task_id: int):
         connection.close()
 
 
-# POST: Will be connected to SQLite in Stage 2
+# STAGE 2: CREATE TASK IN SQLITE
 @app.post("/tasks", description="Create a new task")
 def create_task(payload: TaskCreate):
     title = payload.title
@@ -152,15 +152,26 @@ def create_task(payload: TaskCreate):
             content={"error": "Title is required and cannot be empty"}
         )
 
-    new_task = {
-        "id": max((task["id"] for task in tasks), default=0) + 1,
-        "title": title.strip(),
-        "done": False
-    }
+    connection = get_db_connection()
+    try:
+        cursor = connection.execute(
+            "INSERT INTO tasks (title, done) VALUES (?, ?)",
+            (title.strip(), 0)
+        )
 
-    tasks.append(new_task)
+        connection.commit()
 
-    return JSONResponse(status_code=201, content=new_task)
+        row = connection.execute(
+            "SELECT id, title, done FROM tasks WHERE id = ?",
+            (cursor.lastrowid,)
+        ).fetchone()
+
+        return JSONResponse(
+            status_code=201,
+            content=convert_task(row)
+        )
+    finally:
+        connection.close()
 
 
 # PUT: Will be connected to SQLite in Stage 3
