@@ -81,15 +81,15 @@ The API will run at:
 
 ## API Endpoints
 
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/` | API information |
-| GET | `/health` | Health check |
-| GET | `/tasks` | Get all tasks |
-| GET | `/tasks/{task_id}` | Get one task |
-| POST | `/tasks` | Create a task |
-| PUT | `/tasks/{task_id}` | Update a task |
-| DELETE | `/tasks/{task_id}` | Delete a task |
+| Method | Endpoint           | Description     |
+| ------ | ------------------ | --------------- |
+| GET    | `/`                | API information |
+| GET    | `/health`          | Health check    |
+| GET    | `/tasks`           | Get all tasks   |
+| GET    | `/tasks/{task_id}` | Get one task    |
+| POST   | `/tasks`           | Create a task   |
+| PUT    | `/tasks/{task_id}` | Update a task   |
+| DELETE | `/tasks/{task_id}` | Delete a task   |
 
 ## Example Requests
 
@@ -139,13 +139,13 @@ Expected status: `204 No Content`
 
 ## HTTP Status Codes
 
-| Status | Meaning |
-|---|---|
-| 200 | Request successful |
-| 201 | Task created successfully |
-| 204 | Task deleted successfully |
-| 400 | Invalid request data |
-| 404 | Task not found |
+| Status | Meaning                   |
+| ------ | ------------------------- |
+| 200    | Request successful        |
+| 201    | Task created successfully |
+| 204    | Task deleted successfully |
+| 400    | Invalid request data      |
+| 404    | Task not found            |
 
 ## Swagger API Documentation
 
@@ -158,6 +158,8 @@ Open:
 Use the **Try it out** feature to test all API endpoints directly from your browser.
 
 ### Swagger Screenshot
+
+(<Screenshot 2026-11-20 003818.png>)
 
 ![Task API Swagger Documentation](swagger-screenshot.png)
 
@@ -180,3 +182,39 @@ This project currently uses an in-memory Python list to store tasks. Data is tem
 **Chiranjeevi**
 
 Backend AI Engineering — BE-01: Build Your First CRUD API
+
+## Stage 7 - AI Rematch
+
+Created a separate AI-assisted implementation inside the `ai-rematch` folder.
+
+### AI Rematch Testing
+
+The following operations were tested successfully:
+
+| Operation | Expected Result |
+|---|---|
+| GET all tasks | 200 OK |
+| POST create task | 201 Created |
+| PUT update task | 200 OK |
+| DELETE task | 204 No Content |
+| GET unknown task | 404 Not Found |
+| Invalid title | 400 Bad Request |
+| Invalid done value | 400 Bad Request |
+
+### Three Differences Between Original and AI Versions
+
+1. **Validation:** The original version uses `Any` fields and manual type checking. The AI version uses `StrictStr`, `StrictBool`, and Pydantic field validation.
+
+2. **Task ID generation:** The original calculates the next ID using the maximum existing ID. The AI version uses a separate `next_task_id` counter.
+
+3. **Task lookup:** The original uses a `for` loop to find tasks. The AI version uses `next()` with a generator expression.
+
+### Files
+
+- `ai-rematch/main.py` - AI-assisted implementation.
+- `ai-rematch/requirements.txt` - Dependencies.
+- `ai-rematch/AI_PROMPT.md` - Prompt used for the alternative implementation.
+
+### Learning Outcome
+
+Compared two implementations of the same CRUD API and learned about Pydantic validation, ID generation, and Python task lookup techniques.
