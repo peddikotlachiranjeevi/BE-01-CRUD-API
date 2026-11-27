@@ -5,3 +5,4 @@ __pycache__
 ai-rematch
 tasks.db
 *.png
+.env

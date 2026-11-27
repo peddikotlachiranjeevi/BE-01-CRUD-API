@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from database import initialize_database
 from repository import SQLiteTaskRepository, TaskRepository
+from supabase_client import supabase
 
 
 initialize_database()
@@ -148,3 +149,4 @@ def delete_task(task_id: int):
         )
 
     return Response(status_code=204)
+
