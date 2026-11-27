@@ -283,3 +283,90 @@ See database-screenshot.png for the tasks table opened in DB Browser for SQLite.
 - Stage 3: Update and delete using SQL
 - Stage 4: Explored SQLite queries
 - Stage 5: Database documentation
+
+## BE-04 - Containerize Your Stack
+
+### Overview
+
+The FastAPI Task API is now containerized using Docker. SQLite is used for persistent database storage. The assignment clarification allows SQLite instead of PostgreSQL.
+
+### Architecture
+
+- `main.py` - FastAPI application and API endpoints.
+- `database.py` - SQLite database connection and initialization.
+- `init.sql` - SQL script to create the tasks table.
+- `repository.py` - Task repository interface and SQLite implementation.
+- `Dockerfile` - Instructions to build the application image.
+- `docker-compose.yml` - Application container and persistent volume configuration.
+- `.env` - Local environment configuration (not committed).
+- `.env.example` - Example environment configuration.
+- `.dockerignore` - Files excluded from the Docker build context.
+
+### Database Configuration
+
+The application uses the `DATABASE_URL` environment variable.
+
+The Docker configuration uses:
+
+    DATABASE_URL=sqlite:////app/data/tasks.db
+
+The database is stored in a named Docker volume mounted at `/app/data`.
+
+The database table is created automatically using `init.sql`. Three example tasks are inserted only when the table is empty.
+
+### Repository Pattern
+
+Database operations are separated from the API endpoints.
+
+The `TaskRepository` protocol defines the task operations, and `SQLiteTaskRepository` implements them using SQLite.
+
+The API endpoints call the repository for GET, POST, PUT and DELETE operations.
+
+### Run with Docker
+
+Build and start the application:
+
+    docker compose up --build -d
+
+Check the running container:
+
+    docker ps
+
+Open the API documentation:
+
+    http://localhost:8000/docs
+
+Check the health endpoint:
+
+    http://localhost:8000/health
+
+### Database Persistence
+
+The application uses a named Docker volume called `task_data`.
+
+Database records remain available after restarting the application container:
+
+    docker compose restart
+
+The volume is retained when stopping the application with:
+
+    docker compose down
+
+Do not use `docker compose down -v` when you want to preserve database records.
+
+### Testing Completed
+
+| Test | Result |
+|---|---|
+| Docker image build | Passed |
+| Docker container startup | Passed |
+| GET all tasks | Passed |
+| POST create task | Passed |
+| PUT update task | Passed |
+| DELETE task | Passed |
+| GET deleted task | 404 Not Found |
+| Data persistence after container restart | Passed |
+
+### Learning Outcome
+
+Learned how to containerize a FastAPI application, configure environment variables, separate database operations into a repository, initialize a SQLite database using SQL, and persist application data using Docker volumes.
